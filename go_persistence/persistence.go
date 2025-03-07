@@ -85,14 +85,22 @@ func (ap *ApplicationPersistence) GetPaginatedChaptersByCollectionAndBookNumber(
 	var chapters []*Chapter
 	var total int64
 
-	// Get total count
-	err := ap.dB.Model(&Chapter{}).Where("collection = ? AND arabicBookID = ?", collection, bookNumber).Count(&total).Error
+	// Get total count using ChapterData
+	err := ap.dB.Table("ChapterData").
+		Where("collection = ? AND arabicBookID = ?", collection, bookNumber).
+		Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Get paginated results
-	err = ap.dB.Where("collection = ? AND arabicBookID = ?", collection, bookNumber).Order("babID").Offset((page - 1) * limit).Limit(limit).Find(&chapters).Error
+	// Get paginated results using ChapterData
+	err = ap.dB.Table("ChapterData").
+		Select("collection, ? as bookNumber, CAST(babID AS CHAR) as babID, englishBabNumber, englishBabName, arabicBabNumber, arabicBabName, englishIntro, englishEnding, arabicIntro, arabicEnding, arabicBookID", bookNumber).
+		Where("collection = ? AND arabicBookID = ?", collection, bookNumber).
+		Order("babID").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Scan(&chapters).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -102,7 +110,10 @@ func (ap *ApplicationPersistence) GetPaginatedChaptersByCollectionAndBookNumber(
 
 func (ap *ApplicationPersistence) GetChapterByCollectionAndBookNumberAndChapterNumber(collection string, bookNumber string, chapterNumber string) (*Chapter, error) {
 	var chapter *Chapter
-	err := ap.dB.Where("collection = ? AND ourBookID = ? AND babID = ?", collection, bookNumber, chapterNumber).First(&chapter).Error
+	err := ap.dB.Table("ChapterData").
+		Select("collection, ? as bookNumber, CAST(babID AS CHAR) as babID, englishBabNumber, englishBabName, arabicBabNumber, arabicBabName, englishIntro, englishEnding, arabicIntro, arabicEnding, arabicBookID", bookNumber).
+		Where("collection = ? AND arabicBookID = ? AND babID = ?", collection, bookNumber, chapterNumber).
+		First(&chapter).Error
 	if err != nil {
 		return nil, err
 	}

@@ -80,10 +80,22 @@ func fixHTML(text string, removeWrapper bool) string {
 	// Remove carriage return characters
 	text = strings.ReplaceAll(text, "\r", "")
 
+	// Check if text contains any HTML tags
+	if !strings.Contains(text, "<") || !strings.Contains(text, ">") {
+		return text // Return as is if no HTML tags are found
+	}
+
 	// Parse the HTML document
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(text))
 	if err != nil {
-		return ""
+		// If parsing fails, return the original trimmed text
+		return text
+	}
+
+	// If the document body is empty or contains only whitespace, return original text
+	bodyText := strings.TrimSpace(doc.Find("body").Text())
+	if bodyText == "" {
+		return text
 	}
 
 	// Remove 'id' and 'name' attributes from all anchor tags
@@ -110,19 +122,22 @@ func fixHTML(text string, removeWrapper bool) string {
 	})
 
 	// Get the final text from the builder
-	text = builder.String()
+	result := builder.String()
+
+	// If the result is empty (e.g., all HTML elements were removed), return the original text
+	if result == "" {
+		return text
+	}
 
 	// Optionally remove wrapping <p> tags from the start and end
 	if removeWrapper {
-
-		text = reHtmlParagraphTag.ReplaceAllString(text, "")
+		result = reHtmlParagraphTag.ReplaceAllString(result, "")
 	}
 
 	// Remove tags like <c_q10> or </c_q10>
+	result = reCqTag.ReplaceAllString(result, "")
 
-	text = reCqTag.ReplaceAllString(text, "")
-
-	return text
+	return result
 }
 
 // standardizeTerms standardizes specific terms in the text
@@ -208,7 +223,8 @@ func fixHyperlinks(text string) string {
 	return result.String()
 }
 
-func cleanupText(text string) string {
+// CleanupText cleans up text by removing unnecessary whitespace and fixing HTML
+func CleanupText(text string) string {
 	if text == "" {
 		return text
 	}
@@ -221,16 +237,18 @@ func cleanupText(text string) string {
 	return text
 }
 
-func cleanupEnText(text string) string {
+// CleanupEnText cleans up English text and standardizes terms
+func CleanupEnText(text string) string {
 	if text == "" {
 		return text
 	}
-	text = cleanupText(text)
+	text = CleanupText(text)
 	text = standardizeTerms(text)
 	return text
 }
 
-func cleanupChapterTitle(text string) string {
+// CleanupChapterTitle cleans up chapter titles
+func CleanupChapterTitle(text string) string {
 	if text == "" {
 		return text
 	}
@@ -244,11 +262,29 @@ func cleanupChapterTitle(text string) string {
 	return text
 }
 
-func cleanupEnChapterTitle(text string) string {
+// CleanupEnChapterTitle cleans up English chapter titles and standardizes terms
+func CleanupEnChapterTitle(text string) string {
 	if text == "" {
 		return text
 	}
-	text = cleanupChapterTitle(text)
+	text = CleanupChapterTitle(text)
 	text = standardizeTerms(text)
 	return text
+}
+
+// For backward compatibility
+func cleanupText(text string) string {
+	return CleanupText(text)
+}
+
+func cleanupEnText(text string) string {
+	return CleanupEnText(text)
+}
+
+func cleanupChapterTitle(text string) string {
+	return CleanupChapterTitle(text)
+}
+
+func cleanupEnChapterTitle(text string) string {
+	return CleanupEnChapterTitle(text)
 }

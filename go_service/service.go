@@ -110,19 +110,19 @@ func GetBookNumberFromBookId(bookId int) string {
 }
 
 func processChapter(chapter *go_persistence.Chapter) {
-	chapter.EnglishBabName = cleanupEnChapterTitle(chapter.EnglishBabName)
-	chapter.EnglishIntro = cleanupEnText(chapter.EnglishIntro)
-	chapter.EnglishEnding = cleanupEnText(chapter.EnglishEnding)
+	chapter.EnglishBabName = CleanupEnChapterTitle(chapter.EnglishBabName)
+	chapter.EnglishIntro = CleanupEnText(chapter.EnglishIntro)
+	chapter.EnglishEnding = CleanupEnText(chapter.EnglishEnding)
 
-	chapter.ArabicBabName = cleanupChapterTitle(chapter.ArabicBabName)
-	chapter.ArabicIntro = cleanupText(chapter.ArabicIntro)
-	chapter.ArabicEnding = cleanupText(chapter.ArabicEnding)
+	chapter.ArabicBabName = CleanupChapterTitle(chapter.ArabicBabName)
+	chapter.ArabicIntro = CleanupText(chapter.ArabicIntro)
+	chapter.ArabicEnding = CleanupText(chapter.ArabicEnding)
 }
 
 func processHadith(hadith *go_persistence.Hadith) {
-	hadith.EnglishText = cleanupEnText(hadith.EnglishText)
-	hadith.ArabicText = cleanupText(hadith.ArabicText)
+	hadith.EnglishText = CleanupEnText(hadith.EnglishText)
+	hadith.ArabicText = CleanupText(hadith.ArabicText)
 
-	hadith.EnglishBabName = cleanupEnChapterTitle(hadith.EnglishBabName)
-	hadith.ArabicBabName = cleanupChapterTitle(hadith.ArabicBabName)
+	hadith.EnglishBabName = CleanupEnChapterTitle(hadith.EnglishBabName)
+	hadith.ArabicBabName = CleanupChapterTitle(hadith.ArabicBabName)
 }

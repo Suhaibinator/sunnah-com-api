@@ -114,16 +114,22 @@ type Chapter struct {
 
 func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
 	// Format the babID to maintain the decimal format (e.g., "61.00")
-	chapterId := fmt.Sprintf("%.2f", dbChapter.BabID)
+	chapterId := dbChapter.BabID
 
-	// Use the book number from arabicBookID
-	bookNumber := fmt.Sprintf("%.0f", dbChapter.ArabicBookID)
+	// Use the book number directly
+	bookNumber := dbChapter.BookNumber
 
-	// Create pointers to the strings
-	englishIntro := dbChapter.EnglishIntro
-	englishEnding := dbChapter.EnglishEnding
-	arabicIntro := dbChapter.ArabicIntro
-	arabicEnding := dbChapter.ArabicEnding
+	// Get the cleaned up chapter titles
+	// This matches the Python implementation which uses cleanup functions
+	englishBabName := go_service.CleanupEnChapterTitle(dbChapter.EnglishBabName)
+	arabicBabName := go_service.CleanupChapterTitle(dbChapter.ArabicBabName)
+
+	// Since we're using HadithTable, we don't have intro and ending fields
+	// Set them to empty strings
+	englishIntro := ""
+	englishEnding := ""
+	arabicIntro := ""
+	arabicEnding := ""
 
 	chapter := Chapter{
 		BookNumber: bookNumber,
@@ -132,14 +138,14 @@ func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
 			{
 				Language:      "en",
 				ChapterNumber: dbChapter.EnglishBabNumber,
-				ChapterTitle:  dbChapter.EnglishBabName,
+				ChapterTitle:  englishBabName,
 				Intro:         &englishIntro,
 				Ending:        &englishEnding,
 			},
 			{
 				Language:      "ar",
 				ChapterNumber: dbChapter.ArabicBabNumber,
-				ChapterTitle:  dbChapter.ArabicBabName,
+				ChapterTitle:  arabicBabName,
 				Intro:         &arabicIntro,
 				Ending:        &arabicEnding,
 			},
@@ -219,6 +225,14 @@ func ConvertDbHadithToApiHadith(dbHadith *go_persistence.Hadith) *Hadith {
 	englishGrades := parseGrades(dbHadith.EnglishGrade1, "")
 	arabicGrades := parseGrades(dbHadith.ArabicGrade1, "")
 
+	// Get the cleaned up chapter titles and body text
+	// This matches the Python implementation which uses cleanup functions
+	englishBabName := go_service.CleanupEnChapterTitle(dbHadith.EnglishBabName)
+	arabicBabName := go_service.CleanupChapterTitle(dbHadith.ArabicBabName)
+
+	englishText := go_service.CleanupEnText(dbHadith.EnglishText)
+	arabicText := go_service.CleanupText(dbHadith.ArabicText)
+
 	hadith := Hadith{
 		Collection:   dbHadith.Collection,
 		BookNumber:   dbHadith.BookNumber,
@@ -228,17 +242,17 @@ func ConvertDbHadithToApiHadith(dbHadith *go_persistence.Hadith) *Hadith {
 			{
 				Language:      "en",
 				ChapterNumber: dbHadith.EnglishBabNumber,
-				ChapterTitle:  dbHadith.EnglishBabName,
+				ChapterTitle:  englishBabName,
 				Urn:           dbHadith.EnglishURN,
-				Body:          dbHadith.EnglishText,
+				Body:          englishText,
 				Grades:        englishGrades,
 			},
 			{
 				Language:      "ar",
 				ChapterNumber: dbHadith.ArabicBabNumber,
-				ChapterTitle:  dbHadith.ArabicBabName,
+				ChapterTitle:  arabicBabName,
 				Urn:           dbHadith.ArabicURN,
-				Body:          dbHadith.ArabicText,
+				Body:          arabicText,
 				Grades:        arabicGrades,
 			},
 		},
