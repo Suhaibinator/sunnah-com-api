@@ -1,7 +1,9 @@
 package go_api
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/Suhaibinator/api/go_persistence"
 	"github.com/Suhaibinator/api/go_service"
@@ -23,7 +25,8 @@ type Collection struct {
 }
 
 func ConvertDbCollectionToApiCollection(dbCollection *go_persistence.HadithCollection) *Collection {
-	// Python version includes shortIntroArabic
+	// Note: Python version checks for shortIntroArabic field, but we don't have it in our struct
+	// so we use the same shortIntro for both languages
 
 	collection := Collection{
 		Name:        dbCollection.Name,
@@ -96,8 +99,8 @@ type PaginatedBooks struct {
 }
 
 type ChapterMeta struct {
-	Language      string `json:"lang"`
-	ChapterNumber string
+	Language      string  `json:"lang"`
+	ChapterNumber string  `json:"chapterNumber"`
 	ChapterTitle  string  `json:"chapterTitle"`
 	Intro         *string `json:"intro"`
 	Ending        *string `json:"ending"`
@@ -110,16 +113,35 @@ type Chapter struct {
 }
 
 func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
+	// Format the babID to maintain the decimal format (e.g., "61.00")
+	chapterId := fmt.Sprintf("%.2f", dbChapter.BabID)
+
+	// Use the book number from arabicBookID
+	bookNumber := fmt.Sprintf("%.0f", dbChapter.ArabicBookID)
+
+	// Create pointers to the strings
+	englishIntro := dbChapter.EnglishIntro
+	englishEnding := dbChapter.EnglishEnding
+	arabicIntro := dbChapter.ArabicIntro
+	arabicEnding := dbChapter.ArabicEnding
+
 	chapter := Chapter{
-		BookNumber: dbChapter.Collection,
-		ChapterId:  fmt.Sprint(dbChapter.BabID),
+		BookNumber: bookNumber,
+		ChapterId:  chapterId,
 		ChapterMeta: []ChapterMeta{
 			{
 				Language:      "en",
 				ChapterNumber: dbChapter.EnglishBabNumber,
 				ChapterTitle:  dbChapter.EnglishBabName,
-				Intro:         &dbChapter.EnglishIntro,
-				Ending:        &dbChapter.EnglishEnding,
+				Intro:         &englishIntro,
+				Ending:        &englishEnding,
+			},
+			{
+				Language:      "ar",
+				ChapterNumber: dbChapter.ArabicBabNumber,
+				ChapterTitle:  dbChapter.ArabicBabName,
+				Intro:         &arabicIntro,
+				Ending:        &arabicEnding,
 			},
 		},
 	}
@@ -156,11 +178,51 @@ type Hadith struct {
 	HadithMeta   []HadithMeta `json:"hadith"`
 }
 
+// parseGrades attempts to parse grade data as JSON, with fallback to individual fields
+func parseGrades(gradeValue string, collectionGrader string) []HadithGradedBy {
+	if gradeValue == "" {
+		return []HadithGradedBy{}
+	}
+
+	// Try to parse as JSON
+	var grades []map[string]interface{}
+	err := json.Unmarshal([]byte(gradeValue), &grades)
+	if err == nil {
+		// Successfully parsed as JSON
+		result := make([]HadithGradedBy, len(grades))
+		for i, grade := range grades {
+			grader, _ := grade["graded_by"].(string)
+			gradeVal, _ := grade["grade"].(string)
+			result[i] = HadithGradedBy{
+				Grader: grader,
+				Grade:  gradeVal,
+			}
+		}
+		return result
+	}
+
+	// Fallback to individual field
+	return []HadithGradedBy{
+		{
+			Grader: collectionGrader,
+			Grade:  gradeValue,
+		},
+	}
+}
+
 func ConvertDbHadithToApiHadith(dbHadith *go_persistence.Hadith) *Hadith {
+	// Format the babID to maintain the decimal format (e.g., "61.00")
+	babIDFloat, _ := strconv.ParseFloat(dbHadith.BabID, 64)
+	chapterId := fmt.Sprintf("%.2f", babIDFloat)
+
+	// Parse grades for English and Arabic
+	englishGrades := parseGrades(dbHadith.EnglishGrade1, "")
+	arabicGrades := parseGrades(dbHadith.ArabicGrade1, "")
+
 	hadith := Hadith{
 		Collection:   dbHadith.Collection,
 		BookNumber:   dbHadith.BookNumber,
-		ChapterId:    fmt.Sprint(dbHadith.BabID),
+		ChapterId:    chapterId,
 		HadithNumber: dbHadith.HadithNumber,
 		HadithMeta: []HadithMeta{
 			{
@@ -169,7 +231,15 @@ func ConvertDbHadithToApiHadith(dbHadith *go_persistence.Hadith) *Hadith {
 				ChapterTitle:  dbHadith.EnglishBabName,
 				Urn:           dbHadith.EnglishURN,
 				Body:          dbHadith.EnglishText,
-				Grades:        []HadithGradedBy{},
+				Grades:        englishGrades,
+			},
+			{
+				Language:      "ar",
+				ChapterNumber: dbHadith.ArabicBabNumber,
+				ChapterTitle:  dbHadith.ArabicBabName,
+				Urn:           dbHadith.ArabicURN,
+				Body:          dbHadith.ArabicText,
+				Grades:        arabicGrades,
 			},
 		},
 	}

@@ -41,6 +41,11 @@ func (as *ApplicationService) GetPaginatedHadithsByCollectionAndBookNumber(colle
 }
 
 func (as *ApplicationService) GetBookByCollectionAndBookNumber(collection string, bookNumber string) (*go_persistence.Book, error) {
+	if bookNumber == "introduction" {
+		bookNumber = "-1"
+	} else if bookNumber == "35b" {
+		bookNumber = "-35"
+	}
 	db_result, err := as.applicationPersistence.GetBookByCollectionAndBookNumber(collection, bookNumber)
 	return db_result, err
 }
