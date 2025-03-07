@@ -10,15 +10,15 @@ import (
 type CollectionMeta struct {
 	Language   string `json:"lang"`
 	Title      string `json:"title"`
-	ShortIntro string `json:"shortintro"`
+	ShortIntro string `json:"shortIntro"`
 }
 
 type Collection struct {
 	Name                 string           `json:"name"`
-	HasBooks             bool             `json:"hasbooks"`
-	HasChapters          bool             `json:"haschapters"`
+	HasBooks             bool             `json:"hasBooks"`
+	HasChapters          bool             `json:"hasChapters"`
 	CollectionMeta       []CollectionMeta `json:"collection"`
-	TotalHadith          int              `json:"totalhadith"`
+	TotalHadith          int              `json:"totalHadith"`
 	TotalAvailableHadith int              `json:"totalAvailableHadith"`
 }
 
@@ -62,11 +62,23 @@ type Book struct {
 }
 
 func ConvertDbBookToApiBook(dbBook *go_persistence.Book) *Book {
+	if dbBook == nil {
+		return nil
+	}
+
+	var englishName, arabicName string
+	if dbBook.EnglishName != nil {
+		englishName = *dbBook.EnglishName
+	}
+	if dbBook.ArabicName != nil {
+		arabicName = *dbBook.ArabicName
+	}
+
 	book := Book{
 		BookNumber: go_service.GetBookNumberFromBookId(dbBook.OurBookID),
 		BookMeta: []BookMeta{
-			{Language: "en", Name: *dbBook.EnglishName},
-			{Language: "ar", Name: *dbBook.ArabicName},
+			{Language: "en", Name: englishName},
+			{Language: "ar", Name: arabicName},
 		},
 		HadithStartNumber: dbBook.FirstNumber,
 		HadithEndNumber:   dbBook.LastNumber,

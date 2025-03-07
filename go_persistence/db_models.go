@@ -33,7 +33,7 @@ func (b *Book) TableName() string {
 
 type Chapter struct {
 	Collection       string  `gorm:"column:collection"`
-	ArabicBookID     int     `gorm:"column:arabicBookID"`
+	ArabicBookID     float64 `gorm:"column:arabicBookID"`
 	BabID            float64 `gorm:"column:babID"`
 	EnglishBabNumber string  `gorm:"column:englishBabNumber"`
 	EnglishBabName   string  `gorm:"column:englishBabName"`

@@ -10,7 +10,7 @@
             "request": "launch",
             "module": "flask",
             "env": {
-                "FLASK_APP": "app.py",
+                "FLASK_APP": "main.py",
                 "FLASK_DEBUG": "1"
             },
             "args": [
@@ -29,6 +29,13 @@
             "program": "${workspaceFolder}",
             "env": {},
             "envFile": "${workspaceFolder}/.env.prod_connect"
+        },
+        {
+            "name": "Python: Regression Tests",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/regression.py",
+            "console": "integratedTerminal"
         }
     ]
 }

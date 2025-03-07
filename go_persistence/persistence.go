@@ -25,13 +25,23 @@ func getRandomFunction(db *gorm.DB) string {
 	}
 }
 
-func (ap *ApplicationPersistence) GetPaginatedHadithCollections(page int, limit int) ([]*HadithCollection, error) {
+func (ap *ApplicationPersistence) GetPaginatedHadithCollections(page int, limit int) ([]*HadithCollection, int64, error) {
 	var collections []*HadithCollection
-	err := ap.dB.Offset((page - 1) * limit).Limit(limit).Find(&collections).Error
+	var total int64
+
+	// Get total count
+	err := ap.dB.Model(&HadithCollection{}).Count(&total).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return collections, nil
+
+	// Get paginated results
+	err = ap.dB.Order("collectionID").Offset((page - 1) * limit).Limit(limit).Find(&collections).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return collections, total, nil
 }
 
 func (ap *ApplicationPersistence) GetHadithCollectionByName(name string) (*HadithCollection, error) {
@@ -43,31 +53,51 @@ func (ap *ApplicationPersistence) GetHadithCollectionByName(name string) (*Hadit
 	return &collection, nil
 }
 
-func (ap *ApplicationPersistence) GetPaginatedBooksByCollection(collection string, page int, limit int) ([]*Book, error) {
+func (ap *ApplicationPersistence) GetPaginatedBooksByCollection(collection string, page int, limit int) ([]*Book, int64, error) {
 	var books []*Book
-	err := ap.dB.Where("collection = ?", collection).Offset((page - 1) * limit).Limit(limit).Find(&books).Error
+	var total int64
+
+	// Get total count
+	err := ap.dB.Model(&Book{}).Where("collection = ? AND status = ?", collection, 4).Count(&total).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return books, nil
+
+	// Get paginated results
+	err = ap.dB.Where("collection = ? AND status = ?", collection, 4).Order("ABS(ourBookID)").Offset((page - 1) * limit).Limit(limit).Find(&books).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return books, total, nil
 }
 
 func (ap *ApplicationPersistence) GetBookByCollectionAndBookNumber(collection string, bookNumber string) (*Book, error) {
 	var book Book
-	err := ap.dB.Where("collection = ? AND ourBookID = ?", collection, bookNumber).First(&book).Error
+	err := ap.dB.Where("collection = ? AND ourBookID = ? AND status = ?", collection, bookNumber, 4).First(&book).Error
 	if err != nil {
 		return nil, err
 	}
 	return &book, nil
 }
 
-func (ap *ApplicationPersistence) GetPaginatedChaptersByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*Chapter, error) {
+func (ap *ApplicationPersistence) GetPaginatedChaptersByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*Chapter, int64, error) {
 	var chapters []*Chapter
-	err := ap.dB.Where("collection = ? AND ourBookID = ?", collection, bookNumber).Offset((page - 1) * limit).Limit(limit).Find(&chapters).Error
+	var total int64
+
+	// Get total count
+	err := ap.dB.Model(&Chapter{}).Where("collection = ? AND arabicBookID = ?", collection, bookNumber).Count(&total).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return chapters, nil
+
+	// Get paginated results
+	err = ap.dB.Where("collection = ? AND arabicBookID = ?", collection, bookNumber).Order("babID").Offset((page - 1) * limit).Limit(limit).Find(&chapters).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return chapters, total, nil
 }
 
 func (ap *ApplicationPersistence) GetChapterByCollectionAndBookNumberAndChapterNumber(collection string, bookNumber string, chapterNumber string) (*Chapter, error) {
@@ -79,13 +109,23 @@ func (ap *ApplicationPersistence) GetChapterByCollectionAndBookNumberAndChapterN
 	return chapter, nil
 }
 
-func (ap *ApplicationPersistence) GetPaginatedHadithsByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*Hadith, error) {
+func (ap *ApplicationPersistence) GetPaginatedHadithsByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*Hadith, int64, error) {
 	var hadiths []*Hadith
-	err := ap.dB.Where("collection = ? AND bookNumber = ?", collection, bookNumber).Offset((page - 1) * limit).Limit(limit).Find(&hadiths).Error
+	var total int64
+
+	// Get total count
+	err := ap.dB.Model(&Hadith{}).Where("collection = ? AND bookNumber = ?", collection, bookNumber).Count(&total).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return hadiths, nil
+
+	// Get paginated results
+	err = ap.dB.Where("collection = ? AND bookNumber = ?", collection, bookNumber).Order("englishURN").Offset((page - 1) * limit).Limit(limit).Find(&hadiths).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return hadiths, total, nil
 }
 
 func (ap *ApplicationPersistence) GetHadithByCollectionAndBookNumberAndChapterNumberAndHadithNumber(collection string, bookNumber string, chapterNumber string, hadithNumber string) (*Hadith, error) {

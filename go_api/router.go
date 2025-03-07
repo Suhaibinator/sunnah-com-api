@@ -64,41 +64,17 @@ func (ar *ApplicationRouter) homeHandler(w http.ResponseWriter, r *http.Request)
 	w.Write([]byte("<h1>Welcome to sunnah.com API.</h1>"))
 }
 
+// TODO Paginated responses
+
 func (ar *ApplicationRouter) apiGetAllCollections(w http.ResponseWriter, r *http.Request) {
-	const DEFAULT_LIMIT = 50
-	const DEFAULT_PAGE = 1
-
-	const MAX_LIMIT = 100
-
-	limit := DEFAULT_LIMIT
-	page := DEFAULT_PAGE
-
-	// Get the page and limit from the query params
-	limitFromQuery := r.URL.Query().Get("limit")
-	if limitFromQuery != "" {
-		// Convert the limit to an integer
-		limitFromQueryAsInteger, strConvErr := strconv.Atoi(limitFromQuery)
-		if strConvErr == nil && limitFromQueryAsInteger > 0 && limitFromQueryAsInteger < MAX_LIMIT {
-			limit = limitFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
-	}
-	pageFromQuery := r.URL.Query().Get("page")
-	if pageFromQuery != "" {
-		// Convert the page to an integer
-		pageFromQueryAsInteger, strConvErr := strconv.Atoi(pageFromQuery)
-		if strConvErr == nil && pageFromQueryAsInteger > 0 {
-			page = pageFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
+	page, limit, paginationParameterRetrievalErr := getPaginationParameters(r)
+	if paginationParameterRetrievalErr != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
 	}
 
 	// Get the collections from the service
-	collections, err := ar.applicationService.GetPaginatedHadithCollections(page, limit)
+	collections, total, err := ar.applicationService.GetPaginatedHadithCollections(page, limit)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -110,12 +86,22 @@ func (ar *ApplicationRouter) apiGetAllCollections(w http.ResponseWriter, r *http
 		apiCollections[i] = ConvertDbCollectionToApiCollection(collection)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(apiCollections); err != nil {
+	// Convert to interface slice for PaginatedResponse
+	data := make([]interface{}, len(apiCollections))
+	for i, collection := range apiCollections {
+		data[i] = collection
+	}
+
+	// Create paginated response
+	response := NewPaginatedResponse(data, int(total), limit, page)
+
+	result, jsonErr := json.Marshal(response)
+	if jsonErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(result)
 }
 
 func (ar *ApplicationRouter) apiCollectionHandler(w http.ResponseWriter, r *http.Request) {
@@ -141,43 +127,16 @@ func (ar *ApplicationRouter) apiCollectionHandler(w http.ResponseWriter, r *http
 }
 
 func (ar *ApplicationRouter) apiGetBooksInCollectionHandler(w http.ResponseWriter, r *http.Request) {
-	const DEFAULT_LIMIT = 50
-	const DEFAULT_PAGE = 1
-
-	const MAX_LIMIT = 100
-
-	vars := mux.Vars(r)
-	collectionName := vars["collectionName"]
-
-	limit := DEFAULT_LIMIT
-	page := DEFAULT_PAGE
-
-	// Get the page and limit from the query params
-	limitFromQuery := r.URL.Query().Get("limit")
-	if limitFromQuery != "" {
-		// Convert the limit to an integer
-		limitFromQueryAsInteger, strConvErr := strconv.Atoi(limitFromQuery)
-		if strConvErr == nil && limitFromQueryAsInteger > 0 && limitFromQueryAsInteger < MAX_LIMIT {
-			limit = limitFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
+	page, limit, paginationParameterRetrievalErr := getPaginationParameters(r)
+	if paginationParameterRetrievalErr != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
 	}
-	pageFromQuery := r.URL.Query().Get("page")
-	if pageFromQuery != "" {
-		// Convert the page to an integer
-		pageFromQueryAsInteger, strConvErr := strconv.Atoi(pageFromQuery)
-		if strConvErr == nil && pageFromQueryAsInteger > 0 {
-			page = pageFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
-	}
+
+	collectionName := mux.Vars(r)["collectionName"]
 
 	// Get the books from the service
-	books, err := ar.applicationService.GetPaginatedBooksByCollection(collectionName, page, limit)
+	books, total, err := ar.applicationService.GetPaginatedBooksByCollection(collectionName, page, limit)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -188,7 +147,17 @@ func (ar *ApplicationRouter) apiGetBooksInCollectionHandler(w http.ResponseWrite
 	for i, book := range books {
 		apiBooks[i] = ConvertDbBookToApiBook(book)
 	}
-	result, jsonErr := json.Marshal(apiBooks)
+
+	// Convert to interface slice for PaginatedResponse
+	data := make([]interface{}, len(apiBooks))
+	for i, book := range apiBooks {
+		data[i] = book
+	}
+
+	// Create paginated response
+	response := NewPaginatedResponse(data, int(total), limit, page)
+
+	result, jsonErr := json.Marshal(response)
 	if jsonErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -220,44 +189,18 @@ func (ar *ApplicationRouter) apGetBookHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (ar *ApplicationRouter) apiGetChaptersInBookInCollection(w http.ResponseWriter, r *http.Request) {
-	const DEFAULT_LIMIT = 50
-	const DEFAULT_PAGE = 1
-
-	const MAX_LIMIT = 100
+	page, limit, paginationParameterRetrievalErr := getPaginationParameters(r)
+	if paginationParameterRetrievalErr != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
 
 	vars := mux.Vars(r)
 	collectionName := vars["collectionName"]
 	bookNumber := vars["bookNumber"]
 
-	limit := DEFAULT_LIMIT
-	page := DEFAULT_PAGE
-
-	// Get the page and limit from the query params
-	limitFromQuery := r.URL.Query().Get("limit")
-	if limitFromQuery != "" {
-		// Convert the limit to an integer
-		limitFromQueryAsInteger, strConvErr := strconv.Atoi(limitFromQuery)
-		if strConvErr == nil && limitFromQueryAsInteger > 0 && limitFromQueryAsInteger < MAX_LIMIT {
-			limit = limitFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
-	}
-	pageFromQuery := r.URL.Query().Get("page")
-	if pageFromQuery != "" {
-		// Convert the page to an integer
-		pageFromQueryAsInteger, strConvErr := strconv.Atoi(pageFromQuery)
-		if strConvErr == nil && pageFromQueryAsInteger > 0 {
-			page = pageFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
-	}
-
 	// Get the chapters from the service
-	chapters, err := ar.applicationService.GetPaginatedChaptersByCollectionAndBookNumber(collectionName, bookNumber, page, limit)
+	chapters, total, err := ar.applicationService.GetPaginatedChaptersByCollectionAndBookNumber(collectionName, bookNumber, page, limit)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -268,7 +211,17 @@ func (ar *ApplicationRouter) apiGetChaptersInBookInCollection(w http.ResponseWri
 	for i, chapter := range chapters {
 		apiChapters[i] = ConvertDbChapterToApiChapter(chapter)
 	}
-	result, jsonErr := json.Marshal(apiChapters)
+
+	// Convert to interface slice for PaginatedResponse
+	data := make([]interface{}, len(apiChapters))
+	for i, chapter := range apiChapters {
+		data[i] = chapter
+	}
+
+	// Create paginated response
+	response := NewPaginatedResponse(data, int(total), limit, page)
+
+	result, jsonErr := json.Marshal(response)
 	if jsonErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -301,36 +254,10 @@ func (ar *ApplicationRouter) apiGetChapterInBookInCollection(w http.ResponseWrit
 }
 
 func (ar *ApplicationRouter) apiGetHadithsInBook(w http.ResponseWriter, r *http.Request) {
-	const DEFAULT_LIMIT = 50
-	const DEFAULT_PAGE = 1
-
-	const MAX_LIMIT = 100
-
-	limit := DEFAULT_LIMIT
-	page := DEFAULT_PAGE
-
-	// Get the page and limit from the query params
-	limitFromQuery := r.URL.Query().Get("limit")
-	if limitFromQuery != "" {
-		// Convert the limit to an integer
-		limitFromQueryAsInteger, strConvErr := strconv.Atoi(limitFromQuery)
-		if strConvErr == nil && limitFromQueryAsInteger > 0 && limitFromQueryAsInteger < MAX_LIMIT {
-			limit = limitFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
-	}
-	pageFromQuery := r.URL.Query().Get("page")
-	if pageFromQuery != "" {
-		// Convert the page to an integer
-		pageFromQueryAsInteger, strConvErr := strconv.Atoi(pageFromQuery)
-		if strConvErr == nil && pageFromQueryAsInteger > 0 {
-			page = pageFromQueryAsInteger
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		}
+	page, limit, paginationParameterRetrievalErr := getPaginationParameters(r)
+	if paginationParameterRetrievalErr != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
 	}
 
 	vars := mux.Vars(r)
@@ -338,7 +265,7 @@ func (ar *ApplicationRouter) apiGetHadithsInBook(w http.ResponseWriter, r *http.
 	bookNumber := vars["bookNumber"]
 
 	// Get the hadiths from the service
-	hadiths, err := ar.applicationService.GetPaginatedHadithsByCollectionAndBookNumber(collectionName, bookNumber, page, limit)
+	hadiths, total, err := ar.applicationService.GetPaginatedHadithsByCollectionAndBookNumber(collectionName, bookNumber, page, limit)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -349,7 +276,17 @@ func (ar *ApplicationRouter) apiGetHadithsInBook(w http.ResponseWriter, r *http.
 	for i, hadith := range hadiths {
 		apiHadiths[i] = ConvertDbHadithToApiHadith(hadith)
 	}
-	result, jsonErr := json.Marshal(apiHadiths)
+
+	// Convert to interface slice for PaginatedResponse
+	data := make([]interface{}, len(apiHadiths))
+	for i, hadith := range apiHadiths {
+		data[i] = hadith
+	}
+
+	// Create paginated response
+	response := NewPaginatedResponse(data, int(total), limit, page)
+
+	result, jsonErr := json.Marshal(response)
 	if jsonErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -379,16 +316,6 @@ func (ar *ApplicationRouter) apiGetHadithInCollectionByHadithNumber(w http.Respo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(result)
-}
-
-func (ar *ApplicationRouter) apiGetHadithsByCollectionAndBookAndChapter(w http.ResponseWriter, r *http.Request) {
-
-	/*
-		Need to get clarity on this. Not implemented in python code
-		https://sunnah.stoplight.io/docs/api/hp9hzrfn7wia9-get-a-list-of-hadiths
-		Why do we need hadithNumbnber as query paramter when we are returning a paginated list of hadiths?
-	*/
-
 }
 
 func (ar *ApplicationRouter) apiGetHadithByUrn(w http.ResponseWriter, r *http.Request) {

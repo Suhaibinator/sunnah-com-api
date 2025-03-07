@@ -14,9 +14,9 @@ func NewApplicationService(applicationPersistence *go_persistence.ApplicationPer
 	return &ApplicationService{applicationPersistence: applicationPersistence}
 }
 
-func (as *ApplicationService) GetPaginatedHadithCollections(page int, limit int) ([]*go_persistence.HadithCollection, error) {
-	db_result, err := as.applicationPersistence.GetPaginatedHadithCollections(page, limit)
-	return db_result, err
+func (as *ApplicationService) GetPaginatedHadithCollections(page int, limit int) ([]*go_persistence.HadithCollection, int64, error) {
+	db_result, total, err := as.applicationPersistence.GetPaginatedHadithCollections(page, limit)
+	return db_result, total, err
 }
 
 func (as *ApplicationService) GetHadithCollectionByName(name string) (*go_persistence.HadithCollection, error) {
@@ -24,20 +24,20 @@ func (as *ApplicationService) GetHadithCollectionByName(name string) (*go_persis
 	return db_result, err
 }
 
-func (as *ApplicationService) GetPaginatedBooksByCollection(collection string, page int, limit int) ([]*go_persistence.Book, error) {
-	db_result, err := as.applicationPersistence.GetPaginatedBooksByCollection(collection, page, limit)
-	return db_result, err
+func (as *ApplicationService) GetPaginatedBooksByCollection(collection string, page int, limit int) ([]*go_persistence.Book, int64, error) {
+	db_result, total, err := as.applicationPersistence.GetPaginatedBooksByCollection(collection, page, limit)
+	return db_result, total, err
 }
 
-func (as *ApplicationService) GetPaginatedHadithsByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*go_persistence.Hadith, error) {
-	db_result, err := as.applicationPersistence.GetPaginatedHadithsByCollectionAndBookNumber(collection, bookNumber, page, limit)
+func (as *ApplicationService) GetPaginatedHadithsByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*go_persistence.Hadith, int64, error) {
+	db_result, total, err := as.applicationPersistence.GetPaginatedHadithsByCollectionAndBookNumber(collection, bookNumber, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	for _, hadith := range db_result {
 		processHadith(hadith)
 	}
-	return db_result, nil
+	return db_result, total, nil
 }
 
 func (as *ApplicationService) GetBookByCollectionAndBookNumber(collection string, bookNumber string) (*go_persistence.Book, error) {
@@ -45,15 +45,15 @@ func (as *ApplicationService) GetBookByCollectionAndBookNumber(collection string
 	return db_result, err
 }
 
-func (as *ApplicationService) GetPaginatedChaptersByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*go_persistence.Chapter, error) {
-	db_result, err := as.applicationPersistence.GetPaginatedChaptersByCollectionAndBookNumber(collection, bookNumber, page, limit)
+func (as *ApplicationService) GetPaginatedChaptersByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*go_persistence.Chapter, int64, error) {
+	db_result, total, err := as.applicationPersistence.GetPaginatedChaptersByCollectionAndBookNumber(collection, bookNumber, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	for _, chapter := range db_result {
 		processChapter(chapter)
 	}
-	return db_result, nil
+	return db_result, total, nil
 }
 
 func (as *ApplicationService) GetChapterByCollectionAndBookNumberAndChapterNumber(collection string, bookNumber string, chapterNumber string) (*go_persistence.Chapter, error) {
