@@ -30,6 +30,7 @@ func main() {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		username, password, hostname, port, dbname)
 
+	log.Println("Connecting to database with DSN:", dsn)
 	// Configure GORM logger
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
@@ -45,15 +46,19 @@ func main() {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: newLogger,
 	})
+	log.Println("Database connection established")
 	if err != nil {
 		panic("failed to connect to database: " + err.Error())
 	}
 
+	// Set up the database connection pool
 	appPersistence := go_persistence.NewApplicationPersistence(db)
 	appService := go_service.NewApplicationService(appPersistence)
 	appRouter := go_api.NewApplicationRouter(appService)
 
+	log.Println("Setting up routes")
 	appRouter.RegisterRoutes()
+	log.Println("Routes set up successfully")
 	appRouter.Run(8084)
 
 }
