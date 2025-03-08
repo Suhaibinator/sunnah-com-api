@@ -51,6 +51,11 @@ func (as *ApplicationService) GetBookByCollectionAndBookNumber(collection string
 }
 
 func (as *ApplicationService) GetPaginatedChaptersByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*go_persistence.Chapter, int64, error) {
+	if bookNumber == "introduction" {
+		bookNumber = "-1"
+	} else if bookNumber == "35b" {
+		bookNumber = "-35"
+	}
 	db_result, total, err := as.applicationPersistence.GetPaginatedChaptersByCollectionAndBookNumber(collection, bookNumber, page, limit)
 	if err != nil {
 		return nil, 0, err
