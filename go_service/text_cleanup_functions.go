@@ -271,20 +271,3 @@ func CleanupEnChapterTitle(text string) string {
 	text = standardizeTerms(text)
 	return text
 }
-
-// For backward compatibility
-func cleanupText(text string) string {
-	return CleanupText(text)
-}
-
-func cleanupEnText(text string) string {
-	return CleanupEnText(text)
-}
-
-func cleanupChapterTitle(text string) string {
-	return CleanupChapterTitle(text)
-}
-
-func cleanupEnChapterTitle(text string) string {
-	return CleanupEnChapterTitle(text)
-}

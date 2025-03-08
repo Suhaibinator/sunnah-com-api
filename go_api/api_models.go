@@ -99,11 +99,11 @@ type PaginatedBooks struct {
 }
 
 type ChapterMeta struct {
-	Language      string `json:"lang"`
-	ChapterNumber string `json:"chapterNumber"`
-	ChapterTitle  string `json:"chapterTitle"`
-	Intro         string `json:"intro"`
-	Ending        string `json:"ending"`
+	Language      string  `json:"lang"`
+	ChapterNumber string  `json:"chapterNumber"`
+	ChapterTitle  string  `json:"chapterTitle"`
+	Intro         *string `json:"intro"`
+	Ending        *string `json:"ending"`
 }
 
 type Chapter struct {
@@ -123,28 +123,25 @@ func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
 	englishBabName := go_service.CleanupEnChapterTitle(dbChapter.EnglishBabName)
 	arabicBabName := go_service.CleanupChapterTitle(dbChapter.ArabicBabName)
 
-	// Clean up intro and ending fields
-	// Ensure they're empty strings if null, to match Python implementation
-	englishIntro := ""
+	// Apply the cleanup functions to the intro and ending fields
+	var englishIntro, englishEnding, arabicIntro, arabicEnding *string
+
 	if dbChapter.EnglishIntro != "" {
-		englishIntro = go_service.CleanupEnText(dbChapter.EnglishIntro)
+		temp := "<p>" + go_service.CleanupEnText(dbChapter.EnglishIntro) + "</p>"
+		englishIntro = &temp
 	}
-
-	englishEnding := ""
 	if dbChapter.EnglishEnding != "" {
-		englishEnding = go_service.CleanupEnText(dbChapter.EnglishEnding)
+		temp := "<p>" + go_service.CleanupEnText(dbChapter.EnglishEnding) + "</p>"
+		englishEnding = &temp
 	}
-
-	arabicIntro := ""
 	if dbChapter.ArabicIntro != "" {
-		arabicIntro = go_service.CleanupText(dbChapter.ArabicIntro)
+		temp := "<p>" + go_service.CleanupText(dbChapter.ArabicIntro) + "</p>"
+		arabicIntro = &temp
 	}
-
-	arabicEnding := ""
 	if dbChapter.ArabicEnding != "" {
-		arabicEnding = go_service.CleanupText(dbChapter.ArabicEnding)
+		temp := "<p>" + go_service.CleanupText(dbChapter.ArabicEnding) + "</p>"
+		arabicEnding = &temp
 	}
-
 	chapter := Chapter{
 		BookNumber: bookNumber,
 		ChapterId:  chapterId,
