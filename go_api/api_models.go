@@ -124,10 +124,26 @@ func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
 	arabicBabName := go_service.CleanupChapterTitle(dbChapter.ArabicBabName)
 
 	// Clean up intro and ending fields
-	englishIntro := go_service.CleanupEnText(dbChapter.EnglishIntro)
-	englishEnding := go_service.CleanupEnText(dbChapter.EnglishEnding)
-	arabicIntro := go_service.CleanupText(dbChapter.ArabicIntro)
-	arabicEnding := go_service.CleanupText(dbChapter.ArabicEnding)
+	// Ensure they're empty strings if null, to match Python implementation
+	englishIntro := ""
+	if dbChapter.EnglishIntro != "" {
+		englishIntro = go_service.CleanupEnText(dbChapter.EnglishIntro)
+	}
+
+	englishEnding := ""
+	if dbChapter.EnglishEnding != "" {
+		englishEnding = go_service.CleanupEnText(dbChapter.EnglishEnding)
+	}
+
+	arabicIntro := ""
+	if dbChapter.ArabicIntro != "" {
+		arabicIntro = go_service.CleanupText(dbChapter.ArabicIntro)
+	}
+
+	arabicEnding := ""
+	if dbChapter.ArabicEnding != "" {
+		arabicEnding = go_service.CleanupText(dbChapter.ArabicEnding)
+	}
 
 	chapter := Chapter{
 		BookNumber: bookNumber,
