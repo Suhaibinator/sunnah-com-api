@@ -85,59 +85,85 @@ func fixHTML(text string, removeWrapper bool) string {
 		return text // Return as is if no HTML tags are found
 	}
 
-	// Parse the HTML document
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(text))
-	if err != nil {
-		// If parsing fails, return the original trimmed text
-		return text
-	}
-
-	// If the document body is empty or contains only whitespace, return original text
-	bodyText := strings.TrimSpace(doc.Find("body").Text())
-	if bodyText == "" {
-		return text
-	}
-
-	// Remove 'id' and 'name' attributes from all anchor tags
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		s.RemoveAttr("id")
-		s.RemoveAttr("name")
-	})
-
-	// Collect the HTML of the direct children of the body tag
-	var builder strings.Builder
-	doc.Find("body").Children().Each(func(i int, s *goquery.Selection) {
-		// Skip elements without text content
-		if strings.TrimSpace(s.Text()) == "" {
-			return
-		}
-		htmlStr, err := outerHTML(s)
-		if err != nil {
-			return
-		}
-		if builder.Len() > 0 {
-			builder.WriteString("\n")
-		}
-		builder.WriteString(htmlStr)
-	})
-
-	// Get the final text from the builder
-	result := builder.String()
-
-	// If the result is empty (e.g., all HTML elements were removed), return the original text
-	if result == "" {
-		return text
-	}
-
-	// Optionally remove wrapping <p> tags from the start and end
+	// For chapter titles, we need to be careful not to lose text outside of HTML tags
 	if removeWrapper {
-		result = reHtmlParagraphTag.ReplaceAllString(result, "")
+		// Create a simple HTML document
+		fullHTML := "<html><body>" + text + "</body></html>"
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(fullHTML))
+		if err != nil {
+			// If parsing fails, return the original trimmed text
+			return text
+		}
+
+		// Remove 'id' and 'name' attributes from all anchor tags
+		doc.Find("a").Each(func(i int, s *goquery.Selection) {
+			s.RemoveAttr("id")
+			s.RemoveAttr("name")
+		})
+
+		// Get the HTML content of the body
+		bodyHTML, err := doc.Find("body").Html()
+		if err != nil {
+			return text
+		}
+
+		// Remove wrapping <p> tags if present
+		result := reHtmlParagraphTag.ReplaceAllString(bodyHTML, "")
+
+		// Remove tags like <c_q10> or </c_q10>
+		result = reCqTag.ReplaceAllString(result, "")
+
+		return result
+	} else {
+		// For non-chapter titles, use the original approach
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(text))
+		if err != nil {
+			// If parsing fails, return the original trimmed text
+			return text
+		}
+
+		// If the document body is empty or contains only whitespace, return original text
+		bodyText := strings.TrimSpace(doc.Find("body").Text())
+		if bodyText == "" {
+			return text
+		}
+
+		// Remove 'id' and 'name' attributes from all anchor tags
+		doc.Find("a").Each(func(i int, s *goquery.Selection) {
+			s.RemoveAttr("id")
+			s.RemoveAttr("name")
+		})
+
+		// Collect the HTML of the direct children of the body tag
+		var builder strings.Builder
+		doc.Find("body").Children().Each(func(i int, s *goquery.Selection) {
+			// Skip elements without text content
+			if strings.TrimSpace(s.Text()) == "" {
+				return
+			}
+			htmlStr, err := outerHTML(s)
+			if err != nil {
+				return
+			}
+			if builder.Len() > 0 {
+				builder.WriteString("\n")
+			}
+			builder.WriteString(htmlStr)
+		})
+
+		// Get the final text from the builder
+		result := builder.String()
+
+		// If the result is empty (e.g., all HTML elements were removed), return the original text
+		if result == "" {
+			return text
+		}
+
+		// Remove tags like <c_q10> or </c_q10>
+		result = reCqTag.ReplaceAllString(result, "")
+
+		return result
 	}
-
-	// Remove tags like <c_q10> or </c_q10>
-	result = reCqTag.ReplaceAllString(result, "")
-
-	return result
 }
 
 // standardizeTerms standardizes specific terms in the text
