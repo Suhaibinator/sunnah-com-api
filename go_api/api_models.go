@@ -99,11 +99,11 @@ type PaginatedBooks struct {
 }
 
 type ChapterMeta struct {
-	Language      string  `json:"lang"`
-	ChapterNumber string  `json:"chapterNumber"`
-	ChapterTitle  string  `json:"chapterTitle"`
-	Intro         *string `json:"intro"`
-	Ending        *string `json:"ending"`
+	Language      string `json:"lang"`
+	ChapterNumber string `json:"chapterNumber"`
+	ChapterTitle  string `json:"chapterTitle"`
+	Intro         string `json:"intro"`
+	Ending        string `json:"ending"`
 }
 
 type Chapter struct {
@@ -113,23 +113,21 @@ type Chapter struct {
 }
 
 func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
-	// Format the babID to maintain the decimal format (e.g., "61.00")
+	// Format the babID to maintain the decimal format
 	chapterId := dbChapter.BabID
 
 	// Use the book number directly
 	bookNumber := dbChapter.BookNumber
 
 	// Get the cleaned up chapter titles
-	// This matches the Python implementation which uses cleanup functions
 	englishBabName := go_service.CleanupEnChapterTitle(dbChapter.EnglishBabName)
 	arabicBabName := go_service.CleanupChapterTitle(dbChapter.ArabicBabName)
 
-	// Since we're using HadithTable, we don't have intro and ending fields
-	// Set them to empty strings
-	englishIntro := ""
-	englishEnding := ""
-	arabicIntro := ""
-	arabicEnding := ""
+	// Clean up intro and ending fields
+	englishIntro := go_service.CleanupEnText(dbChapter.EnglishIntro)
+	englishEnding := go_service.CleanupEnText(dbChapter.EnglishEnding)
+	arabicIntro := go_service.CleanupText(dbChapter.ArabicIntro)
+	arabicEnding := go_service.CleanupText(dbChapter.ArabicEnding)
 
 	chapter := Chapter{
 		BookNumber: bookNumber,
@@ -139,15 +137,15 @@ func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
 				Language:      "en",
 				ChapterNumber: dbChapter.EnglishBabNumber,
 				ChapterTitle:  englishBabName,
-				Intro:         &englishIntro,
-				Ending:        &englishEnding,
+				Intro:         englishIntro,
+				Ending:        englishEnding,
 			},
 			{
 				Language:      "ar",
 				ChapterNumber: dbChapter.ArabicBabNumber,
 				ChapterTitle:  arabicBabName,
-				Intro:         &arabicIntro,
-				Ending:        &arabicEnding,
+				Intro:         arabicIntro,
+				Ending:        arabicEnding,
 			},
 		},
 	}

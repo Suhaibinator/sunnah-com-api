@@ -55,9 +55,6 @@ func (as *ApplicationService) GetPaginatedChaptersByCollectionAndBookNumber(coll
 	if err != nil {
 		return nil, 0, err
 	}
-	for _, chapter := range db_result {
-		processChapter(chapter)
-	}
 	return db_result, total, nil
 }
 
@@ -66,7 +63,6 @@ func (as *ApplicationService) GetChapterByCollectionAndBookNumberAndChapterNumbe
 	if err != nil {
 		return nil, err
 	}
-	processChapter(db_result)
 	return db_result, nil
 }
 
@@ -109,15 +105,7 @@ func GetBookNumberFromBookId(bookId int) string {
 	return fmt.Sprint(bookId)
 }
 
-func processChapter(chapter *go_persistence.Chapter) {
-	chapter.EnglishBabName = CleanupEnChapterTitle(chapter.EnglishBabName)
-	chapter.EnglishIntro = CleanupEnText(chapter.EnglishIntro)
-	chapter.EnglishEnding = CleanupEnText(chapter.EnglishEnding)
-
-	chapter.ArabicBabName = CleanupChapterTitle(chapter.ArabicBabName)
-	chapter.ArabicIntro = CleanupText(chapter.ArabicIntro)
-	chapter.ArabicEnding = CleanupText(chapter.ArabicEnding)
-}
+// Note: We no longer need to process chapters here as we're doing it in the API layer
 
 func processHadith(hadith *go_persistence.Hadith) {
 	hadith.EnglishText = CleanupEnText(hadith.EnglishText)

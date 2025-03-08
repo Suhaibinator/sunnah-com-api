@@ -86,7 +86,7 @@ func (ap *ApplicationPersistence) GetPaginatedChaptersByCollectionAndBookNumber(
 	var total int64
 
 	// Get total count using ChapterData
-	err := ap.dB.Table("ChapterData").
+	err := ap.dB.Model(&Chapter{}).
 		Where("collection = ? AND arabicBookID = ?", collection, bookNumber).
 		Count(&total).Error
 	if err != nil {
@@ -94,30 +94,35 @@ func (ap *ApplicationPersistence) GetPaginatedChaptersByCollectionAndBookNumber(
 	}
 
 	// Get paginated results using ChapterData
-	err = ap.dB.Table("ChapterData").
-		Select("collection, ? as bookNumber, CAST(babID AS CHAR) as babID, englishBabNumber, englishBabName, arabicBabNumber, arabicBabName, englishIntro, englishEnding, arabicIntro, arabicEnding, arabicBookID", bookNumber).
-		Where("collection = ? AND arabicBookID = ?", collection, bookNumber).
+	err = ap.dB.Where("collection = ? AND arabicBookID = ?", collection, bookNumber).
 		Order("babID").
 		Offset((page - 1) * limit).
 		Limit(limit).
-		Scan(&chapters).Error
+		Find(&chapters).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	// Set the BookNumber field for each chapter
+	for _, chapter := range chapters {
+		chapter.BookNumber = bookNumber
 	}
 
 	return chapters, total, nil
 }
 
 func (ap *ApplicationPersistence) GetChapterByCollectionAndBookNumberAndChapterNumber(collection string, bookNumber string, chapterNumber string) (*Chapter, error) {
-	var chapter *Chapter
-	err := ap.dB.Table("ChapterData").
-		Select("collection, ? as bookNumber, CAST(babID AS CHAR) as babID, englishBabNumber, englishBabName, arabicBabNumber, arabicBabName, englishIntro, englishEnding, arabicIntro, arabicEnding, arabicBookID", bookNumber).
-		Where("collection = ? AND arabicBookID = ? AND babID = ?", collection, bookNumber, chapterNumber).
+	var chapter Chapter
+	err := ap.dB.Where("collection = ? AND arabicBookID = ? AND babID = ?", collection, bookNumber, chapterNumber).
 		First(&chapter).Error
 	if err != nil {
 		return nil, err
 	}
-	return chapter, nil
+
+	// Set the BookNumber field
+	chapter.BookNumber = bookNumber
+
+	return &chapter, nil
 }
 
 func (ap *ApplicationPersistence) GetPaginatedHadithsByCollectionAndBookNumber(collection string, bookNumber string, page int, limit int) ([]*Hadith, int64, error) {

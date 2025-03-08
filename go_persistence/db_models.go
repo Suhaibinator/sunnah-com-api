@@ -32,24 +32,23 @@ func (b *Book) TableName() string {
 }
 
 type Chapter struct {
-	Collection       string `gorm:"column:collection"`
-	BookNumber       string `gorm:"column:bookNumber"`
-	BabID            string `gorm:"column:babID"`
-	EnglishBabNumber string `gorm:"column:englishBabNumber"`
-	EnglishBabName   string `gorm:"column:englishBabName"`
-	ArabicBabNumber  string `gorm:"column:arabicBabNumber"`
-	ArabicBabName    string `gorm:"column:arabicBabName"`
-	// These fields are not in HadithTable, but we'll keep them for compatibility
-	EnglishIntro  string `gorm:"-"`
-	EnglishEnding string `gorm:"-"`
-	ArabicIntro   string `gorm:"-"`
-	ArabicEnding  string `gorm:"-"`
+	Collection       string  `gorm:"column:collection"`
+	ArabicBookID     float64 `gorm:"column:arabicBookID"`
+	BabID            string  `gorm:"column:babID"`
+	EnglishBabNumber string  `gorm:"column:englishBabNumber"`
+	EnglishBabName   string  `gorm:"column:englishBabName"`
+	EnglishIntro     string  `gorm:"column:englishIntro"`
+	EnglishEnding    string  `gorm:"column:englishEnding"`
+	ArabicBabNumber  string  `gorm:"column:arabicBabNumber"`
+	ArabicBabName    string  `gorm:"column:arabicBabName"`
+	ArabicIntro      string  `gorm:"column:arabicIntro"`
+	ArabicEnding     string  `gorm:"column:arabicEnding"`
 	// This field is needed for compatibility with existing code
-	ArabicBookID float64 `gorm:"-"`
+	BookNumber string `gorm:"-"`
 }
 
 func (c *Chapter) TableName() string {
-	return "HadithTable"
+	return "ChapterData"
 }
 
 type Hadith struct {
