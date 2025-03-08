@@ -127,11 +127,11 @@ func ConvertDbChapterToApiChapter(dbChapter *go_persistence.Chapter) *Chapter {
 	var englishIntro, englishEnding, arabicIntro, arabicEnding *string
 
 	if dbChapter.EnglishIntro != "" {
-		temp := "<p>" + go_service.CleanupEnText(dbChapter.EnglishIntro) + "</p>"
+		temp := go_service.CleanupEnText(dbChapter.EnglishIntro)
 		englishIntro = &temp
 	}
 	if dbChapter.EnglishEnding != "" {
-		temp := "<p>" + go_service.CleanupEnText(dbChapter.EnglishEnding) + "</p>"
+		temp := go_service.CleanupEnText(dbChapter.EnglishEnding)
 		englishEnding = &temp
 	}
 	if dbChapter.ArabicIntro != "" {
