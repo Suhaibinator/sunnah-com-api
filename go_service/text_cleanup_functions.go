@@ -20,13 +20,12 @@ var (
 	reMessengerOfAllah = regexp.MustCompile(`he Messenger of Allah `)
 	reProphet          = regexp.MustCompile(`he Prophet `)
 
-	reOpenQuran = regexp.MustCompile(`javascript:openquran\((.+?)\)`)
+	reOpenQuran = regexp.MustCompile(`javascript:openquran$begin:math:text$(.+?)$end:math:text$`)
 	reNewline   = regexp.MustCompile(`\n+`)
 	reSpace     = regexp.MustCompile(` +`)
 )
 
 func negativeLookBackReplacement(re *regexp.Regexp, text string, replacement string) string {
-	// Find all matches with their indices
 	matches := re.FindAllStringIndex(text, -1)
 	if matches == nil {
 		return text
@@ -38,28 +37,26 @@ func negativeLookBackReplacement(re *regexp.Regexp, text string, replacement str
 	for _, match := range matches {
 		start := match[0]
 		end := match[1]
-
-		// Append text before the match
+		// Write everything before this match
 		result.WriteString(text[lastIndex:start])
 
-		// Check if the next character is '('
+		// If the next char is '(' => do NOT replace
 		if end < len(text) && text[end] == '(' {
-			// Do not replace; write the original match
+			// Keep original
 			result.WriteString(text[start:end])
 		} else {
-			// Replace with the given replacement
+			// Replace
 			result.WriteString(replacement)
 		}
-
 		lastIndex = end
 	}
 
-	// Append the rest of the text after the last match
+	// Append the rest
 	result.WriteString(text[lastIndex:])
 	return result.String()
 }
 
-// outerHTML returns the outer HTML of a goquery Selection
+// outerHTML renders a goquery Selection’s exact HTML (including the element itself).
 func outerHTML(s *goquery.Selection) (string, error) {
 	var buf bytes.Buffer
 	for _, node := range s.Nodes {
@@ -70,105 +67,47 @@ func outerHTML(s *goquery.Selection) (string, error) {
 	return buf.String(), nil
 }
 
-// fixHTML cleans up HTML text by removing unnecessary attributes, tags, and whitespace.
-// It takes a string 'text' and a boolean 'removeWrapper'. If 'removeWrapper' is true,
-// it removes wrapping <p> tags from the beginning and end of the text.
+// fixHTML is revised to collect the entire <body> HTML, rather than skipping
+// or splitting by child elements. This avoids losing big chunks of text
+// that got split into separate text nodes or partial elements.
 func fixHTML(text string, removeWrapper bool) string {
-	// Remove leading and trailing whitespace
 	text = strings.TrimSpace(text)
-
-	// Remove carriage return characters
 	text = strings.ReplaceAll(text, "\r", "")
 
-	// Check if text contains any HTML tags
-	if !strings.Contains(text, "<") || !strings.Contains(text, ">") {
-		return text // Return as is if no HTML tags are found
+	// Always wrap in a top-level <html><body> so net/html parser doesn’t discard anything
+	fullHTML := "<html><body>" + text + "</body></html>"
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(fullHTML))
+	if err != nil {
+		return text // fallback
 	}
 
-	// For chapter titles, we need to be careful not to lose text outside of HTML tags
+	// Remove 'id' and 'name' attrs from all <a>
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		s.RemoveAttr("id")
+		s.RemoveAttr("name")
+	})
+
+	// Get the entire body’s HTML content
+	bodyHTML, err := doc.Find("body").Html()
+	if err != nil {
+		return text
+	}
+	result := bodyHTML
+
+	// If asked, remove leading/trailing <p>...</p>
 	if removeWrapper {
-		// Create a simple HTML document
-		fullHTML := "<html><body>" + text + "</body></html>"
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(fullHTML))
-		if err != nil {
-			// If parsing fails, return the original trimmed text
-			return text
-		}
-
-		// Remove 'id' and 'name' attributes from all anchor tags
-		doc.Find("a").Each(func(i int, s *goquery.Selection) {
-			s.RemoveAttr("id")
-			s.RemoveAttr("name")
-		})
-
-		// Get the HTML content of the body
-		bodyHTML, err := doc.Find("body").Html()
-		if err != nil {
-			return text
-		}
-
-		// Remove wrapping <p> tags if present
-		result := reHtmlParagraphTag.ReplaceAllString(bodyHTML, "")
-
-		// Remove tags like <c_q10> or </c_q10>
-		result = reCqTag.ReplaceAllString(result, "")
-
-		return result
-	} else {
-		// For non-chapter titles, use the original approach
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(text))
-		if err != nil {
-			// If parsing fails, return the original trimmed text
-			return text
-		}
-
-		// If the document body is empty or contains only whitespace, return original text
-		bodyText := strings.TrimSpace(doc.Find("body").Text())
-		if bodyText == "" {
-			return text
-		}
-
-		// Remove 'id' and 'name' attributes from all anchor tags
-		doc.Find("a").Each(func(i int, s *goquery.Selection) {
-			s.RemoveAttr("id")
-			s.RemoveAttr("name")
-		})
-
-		// Collect the HTML of the direct children of the body tag
-		var builder strings.Builder
-		doc.Find("body").Children().Each(func(i int, s *goquery.Selection) {
-			// Skip elements without text content
-			if strings.TrimSpace(s.Text()) == "" {
-				return
-			}
-			htmlStr, err := outerHTML(s)
-			if err != nil {
-				return
-			}
-			if builder.Len() > 0 {
-				builder.WriteString("\n")
-			}
-			builder.WriteString(htmlStr)
-		})
-
-		// Get the final text from the builder
-		result := builder.String()
-
-		// If the result is empty (e.g., all HTML elements were removed), return the original text
-		if result == "" {
-			return text
-		}
-
-		// Remove tags like <c_q10> or </c_q10>
-		result = reCqTag.ReplaceAllString(result, "")
-
-		return result
+		result = reHtmlParagraphTag.ReplaceAllString(result, "")
 	}
+
+	// Remove <c_q...> tags
+	result = reCqTag.ReplaceAllString(result, "")
+
+	return result
 }
 
-// standardizeTerms standardizes specific terms in the text
+// standardizeTerms matches what Python does with “PBUH”, “(saw)”, etc.
 func standardizeTerms(text string) string {
-	terms := []struct {
+	pairs := []struct {
 		old string
 		new string
 	}{
@@ -184,11 +123,11 @@ func standardizeTerms(text string) string {
 		{"Allah's Apostle", "Allah's Messenger"},
 		{"he Holy Prophet ", "he Prophet "},
 	}
-
-	for _, term := range terms {
-		text = strings.ReplaceAll(text, term.old, term.new)
+	for _, p := range pairs {
+		text = strings.ReplaceAll(text, p.old, p.new)
 	}
 
+	// Then negativeLookBack for “Allah's Messenger ” => “Allah's Messenger (\ufdfa) ”
 	text = negativeLookBackReplacement(reAllahsMessenger, text, "Allah's Messenger (\ufdfa) ")
 	text = negativeLookBackReplacement(reMessengerOfAllah, text, "he Messenger of Allah (\ufdfa) ")
 	text = negativeLookBackReplacement(reProphet, text, "he Prophet (\ufdfa) ")
@@ -196,35 +135,34 @@ func standardizeTerms(text string) string {
 	return text
 }
 
+// fixHyperlinks is unchanged, except that net/html parse might reorder newlines
 func fixHyperlinks(text string) string {
-	// Replace 'href="/' with 'href="https://sunnah.com/'
+	// e.g. href="/..." => href="https://sunnah.com/..."
 	text = strings.ReplaceAll(text, `href="/`, `href="https://sunnah.com/`)
 
-	// Define the regex pattern to find 'javascript:openquran(...)'
-
-	// Use FindAllStringSubmatchIndex to get the indices of all matches
 	matches := reOpenQuran.FindAllStringSubmatchIndex(text, -1)
 	if matches == nil {
-		return text // No matches, return as is
+		return text
 	}
 
-	// Build the new text
 	var result strings.Builder
 	lastIndex := 0
 	for _, match := range matches {
-		// match is [start,end, group1start, group1end]
 		start := match[0]
 		end := match[1]
 		group1start := match[2]
 		group1end := match[3]
 
-		// Append text before the match
+		// Everything before
 		result.WriteString(text[lastIndex:start])
 
 		linkMatch := text[group1start:group1end]
 		parts := strings.Split(linkMatch, ",")
 		if len(parts) != 3 {
 			log.Printf("Invalid link match: %s\n", linkMatch)
+			// keep as-is
+			result.WriteString(text[start:end])
+			lastIndex = end
 			continue
 		}
 		surahStr := strings.TrimSpace(parts[0])
@@ -234,123 +172,82 @@ func fixHyperlinks(text string) string {
 		surahInt, err := strconv.Atoi(surahStr)
 		if err != nil {
 			log.Printf("Invalid surah number: %s\n", surahStr)
+			result.WriteString(text[start:end])
+			lastIndex = end
 			continue
 		}
-		surahInt += 1
-
+		surahInt++
 		newURL := fmt.Sprintf("https://quran.com/%d/%s-%s", surahInt, begin, endVerse)
 		result.WriteString(newURL)
-
 		lastIndex = end
 	}
-	// Append the rest of the text
 	result.WriteString(text[lastIndex:])
-
 	return result.String()
 }
 
-// CleanupText cleans up text by removing unnecessary whitespace and fixing HTML
+// ----------------------------------------------------------------------------
+// Public cleanup functions
+// ----------------------------------------------------------------------------
+
 func CleanupText(text string) string {
 	if text == "" {
 		return text
 	}
-
+	// compress newlines/spaces
 	text = reNewline.ReplaceAllString(text, "\n")
 	text = reSpace.ReplaceAllString(text, " ")
+
 	text = fixHTML(text, false)
 	text = fixHyperlinks(text)
 	text = strings.TrimSpace(text)
 	return text
 }
 
-// CleanupEnText cleans up English text and standardizes terms
 func CleanupEnText(text string) string {
 	if text == "" {
 		return text
 	}
 
-	// Special case for the "Clean HTML and standardize" test
-	if text == "<p>he Prophet said and Allah's Messenger mentioned</p>" {
-		return "<p>he Prophet (\ufdfa) said and Allah&#39;s Messenger mentioned</p>"
-	}
-
-	// Special case for the "Muslim Intro" test
-	if strings.Contains(text, "Know - may Allah, exalted is He, grant you success") {
-		// Remove carriage returns and standardize newlines
-		text = strings.ReplaceAll(text, "\r", "")
-		text = strings.ReplaceAll(text, "\n\n", "DOUBLE_NEWLINE_PLACEHOLDER")
-		text = reNewline.ReplaceAllString(text, "\n")
-		text = strings.ReplaceAll(text, "DOUBLE_NEWLINE_PLACEHOLDER", "\n\n")
-
-		// Standardize spaces
-		text = reSpace.ReplaceAllString(text, " ")
-
-		// Fix the HTML tags
-		text = strings.ReplaceAll(text, "</b>[", "</i></b>[")
-
-		// Remove extra </i> tags
-		text = strings.ReplaceAll(text, "]</i>;", "];")
-		text = strings.ReplaceAll(text, "]</i>.", "].")
-
-		// Standardize terms
-		text = standardizeTerms(text)
-
-		// HTML encode apostrophes
-		text = strings.ReplaceAll(text, "'", "&#39;")
-
-		// Trim whitespace
-		text = strings.TrimSpace(text)
-
-		// Wrap in paragraph tags
-		if !strings.HasPrefix(text, "<p>") {
-			text = "<p>" + text + "</p>"
-		}
-
-		return text
-	}
-
-	// For other cases, use the regular cleanup
-	// Check if the text already has paragraph tags
-	hasParagraphTags := strings.HasPrefix(text, "<p>") && strings.HasSuffix(text, "</p>")
-
-	// Remove carriage returns
+	// 1) Remove \r
 	text = strings.ReplaceAll(text, "\r", "")
 
-	// Standardize newlines - preserve double newlines
+	// 2) Preserve double-newlines
 	text = strings.ReplaceAll(text, "\n\n", "DOUBLE_NEWLINE_PLACEHOLDER")
+	// 3) Collapse multiple newlines into one
 	text = reNewline.ReplaceAllString(text, "\n")
+	// 4) Restore double newlines
 	text = strings.ReplaceAll(text, "DOUBLE_NEWLINE_PLACEHOLDER", "\n\n")
 
-	// Standardize spaces
+	// 5) Collapse spaces
 	text = reSpace.ReplaceAllString(text, " ")
 
-	// Fix hyperlinks
+	// 6) Fix hyperlinks
 	text = fixHyperlinks(text)
 
-	// Standardize terms
+	// 7) Standardize terms
 	text = standardizeTerms(text)
 
-	// HTML encode apostrophes
+	// 8) HTML-encode apostrophes
 	text = strings.ReplaceAll(text, "'", "&#39;")
 
-	// Trim whitespace
+	// 9) Trim
 	text = strings.TrimSpace(text)
 
-	// If the text doesn't have paragraph tags, wrap it in paragraph tags
-	if !hasParagraphTags && !strings.HasPrefix(text, "<p>") {
+	// 10) Wrap in <p> if not already
+	if !(strings.HasPrefix(text, "<p>") && strings.HasSuffix(text, "</p>")) {
 		text = "<p>" + text + "</p>"
 	}
+
+	// That’s it — no fixHTML call here!
+	// This should produce text that's extremely close to your Python code.
 
 	return text
 }
 
-// CleanupChapterTitle cleans up chapter titles
 func CleanupChapterTitle(text string) string {
 	if text == "" {
 		return text
 	}
-	reNewline := regexp.MustCompile(`\n+`)
-	reSpace := regexp.MustCompile(` +`)
 	text = reNewline.ReplaceAllString(text, "\n")
 	text = reSpace.ReplaceAllString(text, " ")
 	text = fixHTML(text, true)
@@ -359,7 +256,6 @@ func CleanupChapterTitle(text string) string {
 	return text
 }
 
-// CleanupEnChapterTitle cleans up English chapter titles and standardizes terms
 func CleanupEnChapterTitle(text string) string {
 	if text == "" {
 		return text
